@@ -529,7 +529,24 @@ s21-localstack
 
 [`.github/workflows/ci-cd.yml`](./final-devops-project/.github/workflows/ci-cd.yml) and [`devsecops.yml`](./final-devops-project/.github/workflows/devsecops.yml)
 
-> ⚠️ These are **reference copies** stored inside the project folder. GitHub only runs workflows from `<repo-root>/.github/workflows/`. To activate the pipeline, copy both files there. Paths in the files already use `PROJECT: session-21-final-devops-project/final-devops-project`. The pipeline needs the secrets `KUBE_CONFIG_DATA` and `DB_PASSWORD` and a `production` environment. It was **not run on GitHub** for this homework. Every step it runs was executed locally and is shown in this README.
+> The files above are the full reference pipeline (needs a real cluster + `KUBE_CONFIG_DATA` / `DB_PASSWORD` secrets). The **active pipeline that runs on GitHub** is [`.github/workflows/session21-final-project.yml`](../.github/workflows/session21-final-project.yml) at the repo root – it does the same stages but deploys to a throw-away **kind** cluster inside the runner, so it needs no secrets.
+
+### Pipeline execution on GitHub Actions
+
+Workflow **Session 21 - Final Project Pipeline**: `1. Build & Test` + `2. Security Scans (SAST, SCA, secrets)` → `3. Docker Build, Image Scan & Push (GHCR)` → `4. Deploy to Kubernetes (Helm on kind)` with a `/health` smoke test.
+
+It did **not** pass first time – the pipeline caught two real problems, which I fixed:
+
+| Run | Result | What happened | Fix |
+|---|---|---|---|
+| [#1](https://github.com/Saniya1613/devops-homework/actions/runs/37665478423) | ❌ failed at **SAST gate** | Semgrep rule `python.fastapi.security.wildcard-cors`: the API allowed `CORS allow_origins=["*"]` | Replaced the wildcard with an allow-list from the `CORS_ORIGINS` env var (`app/main.py`) |
+| [#2](https://github.com/Saniya1613/devops-homework/actions/runs/37666092947) / [#3](https://github.com/Saniya1613/devops-homework/actions/runs/37667649062) | ❌ failed at **deploy** | Backend pods in `CrashLoopBackOff`; logs: `psycopg.OperationalError: [Errno -2] Name or service not known`. Root cause: the DB password `Saniya@123` contains `@`, so the URL `postgresql://taskboard:Saniya@123@taskboard-postgres/...` was parsed with host `123@taskboard-postgres` | URL-encode user/password with `quote_plus` in `app/config.py` (and escape `%` for Alembic's configparser in `alembic/env.py`) |
+| [#4](https://github.com/Saniya1613/devops-homework/actions/runs/37669321613) | ✅ **Success** | All 4 jobs green, images pushed to GHCR, Helm release deployed, backend 2/2 Ready, smoke test passed | – |
+
+![Session 21 pipeline – all jobs green](./screenshots/github-actions-run.jpg)
+
+![Deploy job – Helm release running on Kubernetes](./screenshots/github-actions-deploy.jpg)
+
 
 ```mermaid
 flowchart LR
