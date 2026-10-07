@@ -6,7 +6,8 @@ from app.db import Base
 from app import models
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.sqlalchemy_url)
+# "%" must be escaped for configparser (URL-encoded passwords contain e.g. %40)
+config.set_main_option("sqlalchemy.url", settings.sqlalchemy_url.replace("%", "%%"))
 if config.config_file_name:
     fileConfig(config.config_file_name)
 target_metadata = Base.metadata
