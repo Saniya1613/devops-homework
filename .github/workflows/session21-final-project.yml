@@ -165,6 +165,9 @@ jobs:
       - name: Debug on failure
         if: failure()
         run: |
-          kubectl get pods -A
-          kubectl describe pods -n taskboard | tail -80
-          kubectl logs -n taskboard -l app.kubernetes.io/component=backend --tail=50 || true
+          kubectl get pods -n taskboard -o wide
+          for p in $(kubectl get pods -n taskboard -o name | grep backend); do
+            echo "=== $p (previous) ==="; kubectl logs -n taskboard "$p" --previous --tail=60 || true
+            echo "=== $p (current) ===";  kubectl logs -n taskboard "$p" --tail=60 || true
+            kubectl describe -n taskboard "$p" | sed -n '/State:/,/Ready:/p;/Events:/,$p'
+          done
