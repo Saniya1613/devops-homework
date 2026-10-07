@@ -1,0 +1,170 @@
+# Session 21 – Final DevOps Project (TaskBoard): end-to-end pipeline
+# Code -> Build & Test -> Security scanning (SAST / SCA / secrets) -> Docker images -> Image scan gate
+#      -> Push to GHCR (container registry) -> Deploy with Helm to Kubernetes (kind cluster in the runner) -> Smoke test
+# Runs without any repo secrets: GHCR uses the built-in GITHUB_TOKEN, Kubernetes is a throw-away kind cluster.
+name: Session 21 - Final Project Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "session-21-final-devops-project/**"
+      - ".github/workflows/session21-final-project.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROJECT: session-21-final-devops-project/final-devops-project
+  TRIVY_IMAGE: aquasec/trivy:0.75.0
+  GITLEAKS_IMAGE: zricethezav/gitleaks:v8.30.1
+
+jobs:
+  # ---------------------------------------------------------------- 1. Build & unit tests
+  test:
+    name: 1. Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Backend unit tests (pytest)
+        working-directory: ${{ env.PROJECT }}/application/backend
+        run: |
+          pip install -r requirements.txt pytest
+          pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Frontend build + test
+        working-directory: ${{ env.PROJECT }}/application/frontend
+        run: npm install --no-audit --no-fund && npm run build && npm test
+      - uses: azure/setup-helm@v4
+      - name: Helm lint
+        working-directory: ${{ env.PROJECT }}
+        run: helm lint helm/taskboard
+
+  # ---------------------------------------------------------------- 2. Security scanning
+  security:
+    name: 2. Security Scans (SAST, SCA, secrets)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: SAST – Semgrep
+        run: |
+          pip install "semgrep==1.179.0"
+          semgrep scan --config p/python --error --quiet application/backend
+      - name: SCA – pip-audit
+        run: |
+          pip install "pip-audit==2.10.1"
+          pip-audit -r application/backend/requirements.txt
+      - name: SCA – Trivy filesystem scan
+        run: |
+          docker run --rm -v "$PWD":/src -w /src "$TRIVY_IMAGE" fs --quiet --scanners vuln \
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 application
+      - name: Secret scanning – gitleaks
+        run: |
+          docker run --rm -v "$PWD":/src -w /src "$GITLEAKS_IMAGE" dir . \
+            --config security/gitleaks.toml --redact --verbose --exit-code 1
+
+  # ---------------------------------------------------------------- 3. Docker build + image scan gate + push
+  build-scan-push:
+    name: 3. Docker Build, Image Scan & Push (GHCR)
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Image names (GHCR needs lowercase)
+        run: |
+          echo "BACKEND=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/taskboard-backend:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "FRONTEND=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/taskboard-frontend:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+      - name: Build images
+        run: |
+          docker build -f docker/backend.Dockerfile  -t "$BACKEND"  application/backend
+          docker build -f docker/frontend.Dockerfile -t "$FRONTEND" application/frontend
+      - name: Security gate – Trivy image scan (fail on fixable HIGH/CRITICAL)
+        run: |
+          for img in "$BACKEND" "$FRONTEND"; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image --quiet \
+              --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$img"
+          done
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push images to GHCR
+        run: |
+          docker push "$BACKEND"
+          docker push "$FRONTEND"
+      - name: Save images for the deploy job
+        run: docker save "$BACKEND" "$FRONTEND" -o /tmp/taskboard-images.tar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: s21-images
+          path: /tmp/taskboard-images.tar
+          retention-days: 1
+
+  # ---------------------------------------------------------------- 4. Deploy to Kubernetes with Helm
+  deploy:
+    name: 4. Deploy to Kubernetes (Helm on kind)
+    needs: build-scan-push
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: s21-images
+          path: /tmp
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: s21-kind
+      - uses: azure/setup-helm@v4
+      - name: Load images into kind
+        run: |
+          docker load -i /tmp/taskboard-images.tar
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"; TAG="${GITHUB_SHA::7}"
+          kind load docker-image "ghcr.io/$OWNER/taskboard-backend:$TAG" "ghcr.io/$OWNER/taskboard-frontend:$TAG" --name s21-kind
+          echo "OWNER=$OWNER" >> "$GITHUB_ENV"; echo "TAG=$TAG" >> "$GITHUB_ENV"
+      - name: helm upgrade --install
+        run: |
+          helm upgrade --install taskboard helm/taskboard -n taskboard --create-namespace \
+            --set backend.image=ghcr.io/$OWNER/taskboard-backend --set backend.tag=$TAG \
+            --set frontend.image=ghcr.io/$OWNER/taskboard-frontend --set frontend.tag=$TAG \
+            --set postgres.storageClass=standard --set ingress.enabled=false \
+            --set monitoring.serviceMonitor.enabled=false \
+            --wait --timeout 6m
+      - name: Verify deployment
+        run: |
+          kubectl get deploy,sts,pods,svc,hpa,pvc -n taskboard
+          kubectl rollout status deploy -n taskboard --timeout=180s
+      - name: Smoke test (backend /health through the Service)
+        run: |
+          SVC=$(kubectl get svc -n taskboard -o name | grep backend | head -1)
+          kubectl port-forward -n taskboard "$SVC" 18000:8000 >/tmp/pf.log 2>&1 &
+          sleep 5
+          curl -sf http://127.0.0.1:18000/health && echo && echo "SMOKE TEST PASSED"
+      - name: Debug on failure
+        if: failure()
+        run: |
+          kubectl get pods -A
+          kubectl describe pods -n taskboard | tail -80
+          kubectl logs -n taskboard -l app.kubernetes.io/component=backend --tail=50 || true
