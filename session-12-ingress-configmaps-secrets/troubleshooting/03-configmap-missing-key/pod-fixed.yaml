@@ -1,0 +1,25 @@
+# FIXED: key name matches the ConfigMap ("LOG_LEVEL")
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web-pod
+  namespace: s12-troubleshoot
+spec:
+  containers:
+    - name: web
+      image: busybox:1.36
+      command: ["sh", "-c", "echo LOG_LEVEL=$LOG_LEVEL APP_COLOR=$APP_COLOR; sleep 3600"]
+      env:
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: web-config
+              key: LOG_LEVEL
+        - name: APP_COLOR
+          valueFrom:
+            configMapKeyRef:
+              name: web-config
+              key: APP_COLOR
+      resources:
+        requests: { cpu: 10m, memory: 16Mi }
+        limits:   { cpu: 50m, memory: 32Mi }

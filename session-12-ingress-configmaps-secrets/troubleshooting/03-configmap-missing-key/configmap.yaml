@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+  namespace: s12-troubleshoot
+data:
+  LOG_LEVEL: "INFO"
+  APP_COLOR: "blue"

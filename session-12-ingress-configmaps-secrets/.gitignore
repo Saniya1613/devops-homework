@@ -1,0 +1,7 @@
+# Never commit real secrets. Real secret manifests / env files stay local.
+*.secret.yaml
+*-secret.local.yaml
+.env
+*.env
+*.pem
+*.key

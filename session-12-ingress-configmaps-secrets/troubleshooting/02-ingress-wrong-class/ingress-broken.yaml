@@ -1,0 +1,20 @@
+# BROKEN: copied from the minikube reference (03-ingress/path-based.yml) which uses
+# ingressClassName: nginx – but this k3s cluster only runs the Traefik controller.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shop-ingress
+  namespace: s12-troubleshoot
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: shop.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shop-service
+                port:
+                  number: 80

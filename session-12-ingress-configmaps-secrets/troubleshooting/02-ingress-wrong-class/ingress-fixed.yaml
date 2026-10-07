@@ -1,0 +1,19 @@
+# FIXED: ingressClassName points to the controller that actually exists (traefik).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shop-ingress
+  namespace: s12-troubleshoot
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: shop.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shop-service
+                port:
+                  number: 80

@@ -1,0 +1,31 @@
+# "Application" that connects to PostgreSQL every 5s using credentials from app-db-secret
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yatri-app
+  namespace: s12-troubleshoot
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: yatri-app }
+  template:
+    metadata:
+      labels: { app: yatri-app }
+    spec:
+      containers:
+        - name: app
+          image: postgres:16-alpine     # only used for the psql client
+          command:
+            - sh
+            - -c
+            - |
+              while true; do
+                if PGPASSWORD="$DB_PASSWORD" psql -h postgres -U "$DB_USER" -d "$DB_NAME" -tAc "select 'connected to ' || current_database() || ' as ' || current_user" 2>&1; then :; fi
+                sleep 5
+              done
+          envFrom:
+            - secretRef:
+                name: app-db-secret
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 100m, memory: 64Mi }

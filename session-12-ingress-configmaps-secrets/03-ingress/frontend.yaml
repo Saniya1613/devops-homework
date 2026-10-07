@@ -1,0 +1,66 @@
+# Frontend – nginx serving a static page (page content itself comes from a ConfigMap)
+# Adapted from devops-heros/session-12-ingress-configmaps-secrets/04-full-demo/frontend.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-html
+  namespace: s12-demo
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head><title>Yatri Frontend</title></head>
+    <body style="font-family:sans-serif;background:#eef6ff;padding:30px">
+      <h1>Yatri Travel – Frontend</h1>
+      <p>Served by the <b>yatri-frontend</b> Service (nginx) through the Traefik Ingress Controller.</p>
+      <p>Backend API lives at <code>/api</code> and on host <code>api.yatri.local</code>.</p>
+      <p><i>Session 12 homework – Saniya Sanjiv Patil (24bcs10246)</i></p>
+    </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yatri-frontend
+  namespace: s12-demo
+  labels:
+    app: yatri-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: yatri-frontend
+  template:
+    metadata:
+      labels:
+        app: yatri-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+          resources:
+            requests: { cpu: 20m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+      volumes:
+        - name: html
+          configMap:
+            name: frontend-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: yatri-frontend-service
+  namespace: s12-demo
+spec:
+  type: ClusterIP
+  selector:
+    app: yatri-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80

@@ -1,0 +1,22 @@
+# ConfigMap – non-sensitive application configuration
+# Adapted from devops-heros/session-12-ingress-configmaps-secrets/01-configmap/app-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: yatri-app-config
+  namespace: s12-demo
+  labels:
+    app: yatri-backend
+data:
+  # simple key/value pairs -> consumed as environment variables
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  PORT: "5000"
+  DEFAULT_CURRENCY: "INR"
+  MAX_BOOKING_DAYS: "30"
+  # a whole file -> consumed through a volume mount
+  app.properties: |
+    app.name=yatri-booking
+    app.owner=Saniya Sanjiv Patil
+    feature.payments=true
+    feature.dark-mode=false

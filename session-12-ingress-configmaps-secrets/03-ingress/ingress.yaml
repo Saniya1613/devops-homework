@@ -1,0 +1,41 @@
+# Ingress – one entry point (Traefik on port 80) routing to two different backends
+#   * path-based : yatri.local/      -> yatri-frontend-service
+#                  yatri.local/api   -> yatri-backend-service
+#   * host-based : api.yatri.local/  -> yatri-backend-service
+# Adapted from devops-heros/session-12-ingress-configmaps-secrets/03-ingress/path-based.yml
+# k3s ships the Traefik controller, so ingressClassName is "traefik" (not "nginx" as in the minikube reference).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: yatri-ingress
+  namespace: s12-demo
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: yatri.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-backend-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-frontend-service
+                port:
+                  number: 80
+    - host: api.yatri.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: yatri-backend-service
+                port:
+                  number: 80

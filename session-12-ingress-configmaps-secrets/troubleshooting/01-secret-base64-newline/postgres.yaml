@@ -1,0 +1,47 @@
+# PostgreSQL database – its password comes from postgres-secret (encoded correctly with echo -n)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: s12-troubleshoot
+type: Opaque
+data:
+  POSTGRES_USER: eWF0cmlfYWRtaW4=        # echo -n 'yatri_admin' | base64
+  POSTGRES_PASSWORD: U2FuaXlhQDEyMw==    # echo -n 'Saniya@123'  | base64
+  POSTGRES_DB: eWF0cmlfZGI=              # echo -n 'yatri_db'    | base64
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: s12-troubleshoot
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: postgres }
+  template:
+    metadata:
+      labels: { app: postgres }
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          envFrom:
+            - secretRef:
+                name: postgres-secret
+          ports:
+            - containerPort: 5432
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits:   { cpu: 300m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: s12-troubleshoot
+spec:
+  selector: { app: postgres }
+  ports:
+    - port: 5432
+      targetPort: 5432
