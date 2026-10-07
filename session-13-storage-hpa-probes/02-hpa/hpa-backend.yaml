@@ -1,0 +1,27 @@
+# From devops-heros/session-13-storage-hpa-probes/hpa/hpa-backend.yaml
+# Changes: namespace added, minReplicas 2->1 and maxReplicas 10->5 (2-CPU lab machine),
+# and an explicit (default-valued) behavior block so the scale-down window is visible.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: yatri-backend-hpa
+  namespace: s13-hpa
+  labels:
+    app: yatri-backend
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: yatri-backend
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300   # default: wait 5 min of low load before removing pods

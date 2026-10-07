@@ -1,0 +1,15 @@
+# Dynamic provisioning: only a PVC is written; the StorageClass' provisioner creates the PV.
+# Adapted from devops-heros/session-13-storage-hpa-probes/03-storageclass/pvc.yaml
+# (storageClassName "standard" is minikube's; on k3s the class is "local-path")
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+  namespace: s13-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 500Mi

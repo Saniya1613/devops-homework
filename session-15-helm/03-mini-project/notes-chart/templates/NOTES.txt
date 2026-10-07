@@ -1,0 +1,3 @@
+Notes app "{{ .Values.app.name }}" ({{ .Values.app.environment }}) deployed as release {{ .Release.Name }}, revision {{ .Release.Revision }}.
+Image: {{ .Values.image.repository }}:{{ .Values.image.tag }}, replicas: {{ .Values.replicaCount }}
+Open:  http://<node-ip>:{{ .Values.service.nodePort }}

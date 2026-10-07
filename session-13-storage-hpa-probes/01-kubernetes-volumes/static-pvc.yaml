@@ -1,0 +1,14 @@
+# The DEVELOPER claims storage – Kubernetes binds it to a matching PV
+# Adapted from devops-heros/session-13-storage-hpa-probes/02-persistent-storage/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: student-pvc
+  namespace: s13-storage
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: manual
+  resources:
+    requests:
+      storage: 500Mi

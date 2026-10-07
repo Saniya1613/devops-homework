@@ -1,0 +1,5 @@
+# From devops-heros/session-13-storage-hpa-probes/mini-project/namespace.yaml (namespace renamed to s13-production-webapp)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: s13-production-webapp

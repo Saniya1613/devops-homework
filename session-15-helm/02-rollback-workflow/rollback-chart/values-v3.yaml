@@ -1,0 +1,4 @@
+replicaCount: 3
+image:
+  tag: "1.26"
+message: "Hello from version 3"

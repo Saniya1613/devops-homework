@@ -1,0 +1,19 @@
+# Adapted from devops-heros/session-13-storage-hpa-probes/02-persistent-storage/pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-demo
+  namespace: s13-storage
+spec:
+  containers:
+    - name: app
+      image: nginx:1.27-alpine
+      volumeMounts:
+        - name: persistent-storage
+          mountPath: /data
+      resources:
+        limits: { cpu: 50m, memory: 32Mi }
+  volumes:
+    - name: persistent-storage
+      persistentVolumeClaim:
+        claimName: student-pvc

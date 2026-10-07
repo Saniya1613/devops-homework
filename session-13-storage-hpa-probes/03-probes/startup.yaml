@@ -1,0 +1,28 @@
+# From devops-heros/session-13-storage-hpa-probes/05-probes/startup.yaml (namespace added, alpine image)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: startup-demo
+  namespace: s13-probes
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.27-alpine
+      ports:
+        - containerPort: 80
+      startupProbe:
+        httpGet:
+          path: /
+          port: 80
+        failureThreshold: 30
+        periodSeconds: 2
+      livenessProbe:
+        httpGet:
+          path: /
+          port: 80
+        periodSeconds: 5
+      readinessProbe:
+        httpGet:
+          path: /
+          port: 80
+        periodSeconds: 5

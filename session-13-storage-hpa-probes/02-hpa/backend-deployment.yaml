@@ -1,0 +1,51 @@
+# yatri-backend – small Python API. Every request does a bit of CPU work so that
+# load turns into measurable CPU usage. CPU *requests* are mandatory for HPA
+# (utilization % = usage / request).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: yatri-backend
+  namespace: s13-hpa
+  labels:
+    app: yatri-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: yatri-backend
+  template:
+    metadata:
+      labels:
+        app: yatri-backend
+    spec:
+      containers:
+        - name: backend
+          image: python:3.12-alpine
+          command:
+            - python3
+            - -c
+            - |
+              import socket
+              from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
+              class H(BaseHTTPRequestHandler):
+                  def log_message(self, *a): pass
+                  def do_GET(self):
+                      n = sum(i * i for i in range(20000))      # ~ a few ms of CPU per request
+                      body = f'OK from {socket.gethostname()} path={self.path} n={n}\n'.encode()
+                      self.send_response(200)
+                      self.send_header('Content-Length', str(len(body)))
+                      self.end_headers()
+                      self.wfile.write(body)
+              ThreadingHTTPServer(('0.0.0.0', 5000), H).serve_forever()
+          ports:
+            - containerPort: 5000
+          readinessProbe:
+            httpGet: { path: /healthz, port: 5000 }
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m        # HPA target 50% => scale out above ~50m per pod
+              memory: 32Mi
+            limits:
+              cpu: 200m        # kept small: shared 2-CPU machine
+              memory: 64Mi

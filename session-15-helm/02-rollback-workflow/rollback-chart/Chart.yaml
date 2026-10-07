@@ -1,0 +1,6 @@
+apiVersion: v2
+name: rollback-chart
+description: Install / upgrade / rollback demo chart (adapted from devops-heros session-15 07-install-upgrade/app-chart)
+type: application
+version: 0.1.0
+appVersion: "1.0"

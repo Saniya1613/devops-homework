@@ -1,0 +1,18 @@
+# Liveness probe pointing at a path that doesn't exist -> kubelet keeps restarting the container
+apiVersion: v1
+kind: Pod
+metadata:
+  name: liveness-broken
+  namespace: s13-probes
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.27-alpine
+      livenessProbe:
+        httpGet:
+          path: /wrong-path
+          port: 80
+        initialDelaySeconds: 5
+        periodSeconds: 5
+        timeoutSeconds: 2
+        failureThreshold: 3

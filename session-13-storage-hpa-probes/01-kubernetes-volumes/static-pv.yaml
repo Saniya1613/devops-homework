@@ -1,0 +1,16 @@
+# Static provisioning: the ADMIN creates the PersistentVolume by hand
+# Adapted from devops-heros/session-13-storage-hpa-probes/02-persistent-storage/pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: s13-student-pv              # PVs are cluster-scoped (no namespace)
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: manual          # so the default (local-path) class doesn't grab the claim
+  hostPath:
+    path: /tmp/s13-student-data
+    type: DirectoryOrCreate

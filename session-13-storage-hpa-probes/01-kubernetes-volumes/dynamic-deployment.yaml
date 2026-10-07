@@ -1,0 +1,29 @@
+# Deployment using the dynamically provisioned PVC – used to prove data survives Pod deletion
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notes-app
+  namespace: s13-storage
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate          # RWO volume: old pod must release it before the new one starts
+  selector:
+    matchLabels: { app: notes-app }
+  template:
+    metadata:
+      labels: { app: notes-app }
+    spec:
+      containers:
+        - name: app
+          image: busybox:1.36
+          command: ["sh", "-c", "echo \"pod $(hostname) started at $(date '+%H:%M:%S')\" >> /data/notes.txt; sleep 3600"]
+          volumeMounts:
+            - name: notes
+              mountPath: /data
+          resources:
+            limits: { cpu: 20m, memory: 16Mi }
+      volumes:
+        - name: notes
+          persistentVolumeClaim:
+            claimName: dynamic-pvc

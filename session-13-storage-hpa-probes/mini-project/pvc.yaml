@@ -1,0 +1,12 @@
+# From devops-heros/session-13-storage-hpa-probes/mini-project/pvc.yaml (namespace renamed to s13-production-webapp)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: web-data
+  namespace: s13-production-webapp
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi

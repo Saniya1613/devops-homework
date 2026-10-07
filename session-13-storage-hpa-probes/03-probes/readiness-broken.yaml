@@ -1,0 +1,18 @@
+# Readiness probe pointing at a path that doesn't exist -> Running but 0/1 Ready, removed from Service endpoints
+apiVersion: v1
+kind: Pod
+metadata:
+  name: readiness-broken
+  namespace: s13-probes
+  labels:
+    app: readiness-demo          # same label as readiness-demo -> same Service
+spec:
+  containers:
+    - name: nginx
+      image: nginx:1.27-alpine
+      readinessProbe:
+        httpGet:
+          path: /wrong-path
+          port: 80
+        initialDelaySeconds: 5
+        periodSeconds: 5

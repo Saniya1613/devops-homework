@@ -1,0 +1,22 @@
+# Load generator – busybox pod hammering the Service in a tight loop (2 parallel workers)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: load-generator
+  namespace: s13-hpa
+  labels:
+    app: load-generator
+spec:
+  restartPolicy: Never
+  containers:
+    - name: load
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Sending requests to http://yatri-backend-service/healthz ..."
+          worker() { while true; do wget -q -O /dev/null http://yatri-backend-service/healthz; done; }
+          worker & worker & wait
+      resources:
+        limits: { cpu: 150m, memory: 32Mi }

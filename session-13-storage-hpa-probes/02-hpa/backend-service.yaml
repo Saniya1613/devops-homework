@@ -1,0 +1,16 @@
+# From devops-heros/session-13-storage-hpa-probes/hpa/backend-service.yaml (namespace added)
+apiVersion: v1
+kind: Service
+metadata:
+  name: yatri-backend-service
+  namespace: s13-hpa
+  labels:
+    app: yatri-backend
+spec:
+  type: ClusterIP
+  selector:
+    app: yatri-backend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000
