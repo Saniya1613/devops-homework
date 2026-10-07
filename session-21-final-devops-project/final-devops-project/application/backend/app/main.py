@@ -1,4 +1,5 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -24,7 +25,11 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# CORS: only trusted origins (comma-separated CORS_ORIGINS env var). A wildcard "*" was flagged by
+# the Semgrep SAST gate in CI (python.fastapi.security.wildcard-cors) and replaced with this allow-list.
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:8080,http://taskboard.local").split(",") if o.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
+                   allow_headers=["Content-Type", "Authorization"])
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 @app.get("/")
