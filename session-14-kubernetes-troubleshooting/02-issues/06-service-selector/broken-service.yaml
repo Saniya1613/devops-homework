@@ -1,0 +1,12 @@
+# Source: ref 09-service-dns-troubleshooting/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+spec:
+  selector:
+    app: web-ahsgdf     # BUG: no Pod has this label
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

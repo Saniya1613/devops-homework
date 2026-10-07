@@ -618,7 +618,9 @@ exit code: 1
 
 ## Pipeline execution on GitHub Actions
 
-<!-- RUN_SCREENSHOTS_SESSION16 -->
+✅ **Real run on GitHub Actions – [run #1](https://github.com/Saniya1613/devops-homework/actions/runs/37653425649): Status Success, 4/4 jobs green (CI - Lint & Unit Test → CI - Build artifact → CD - Docker build & push (GHCR) → CD - Deploy to Kubernetes (kind)), 4 artifacts, total 2m 43s.**
+
+![Session 16 pipeline run on GitHub Actions](./screenshots/github-actions-run.jpg)
 
 ---
 

@@ -1,0 +1,11 @@
+# Source: ref 08-pending-pods/broken-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-demo
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: node-that-does-not-exist   # BUG: no node has this label
+  containers:
+    - name: nginx
+      image: nginx:1.27

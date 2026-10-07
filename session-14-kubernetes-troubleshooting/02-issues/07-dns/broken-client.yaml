@@ -1,0 +1,18 @@
+# Based on ref scenarios/scenario-4-dns-failure/broken.yaml
+# Client runs in namespace s14-dns
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dns-client
+spec:
+  containers:
+    - name: client
+      image: curlimages/curl:8.6.0
+      command: ["sh", "-c"]
+      args:
+        - |
+          echo "Attempting connection to internal database...";
+          # BUG 1: wrong service name, BUG 2: wrong namespace (production)
+          curl -s --connect-timeout 3 http://postgres-db-wrong-name.production.svc.cluster.local:5432 || echo "curl failed with exit code $?";
+          echo "Process sleeping...";
+          sleep 3600

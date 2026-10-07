@@ -1,0 +1,14 @@
+# Source: ref scenarios/scenario-3-pending/broken.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-pod
+spec:
+  containers:
+    - name: hungry-app
+      image: nginx:alpine
+      resources:
+        requests:
+          # BUG: 500 CPU cores / 1000Gi RAM - no node can ever satisfy this
+          cpu: "500"
+          memory: "1000Gi"

@@ -1,0 +1,9 @@
+# BUG: default-deny ingress for every pod in the namespace (k3s ships an
+# embedded NetworkPolicy controller, so this is really enforced)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+spec:
+  podSelector: {}
+  policyTypes: ["Ingress"]

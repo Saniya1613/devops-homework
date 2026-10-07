@@ -942,7 +942,9 @@ exit code: 1
 
 ## Pipeline execution on GitHub Actions
 
-<!-- RUN_SCREENSHOTS_SESSION17 -->
+✅ **Real run on GitHub Actions – [run #1](https://github.com/Saniya1613/devops-homework/actions/runs/37653425360): Status Success, all 9 jobs green (Build & Unit Test, SAST, SCA, Secret Scan → Docker Build → Container Image Scan → Security Gate → Push Image (GHCR) → Deploy to Kubernetes (kind)), 7 artifacts, total 3m 21s.**
+
+![Session 17 DevSecOps pipeline run on GitHub Actions](./screenshots/github-actions-run.jpg)
 
 ---
 

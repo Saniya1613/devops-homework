@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notes-config
+data:
+  DATABASE_HOST: "postgres-db"
+  LOG_LEVEL: "info"
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: config-pod
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command: ["sh", "-c", "echo DB_HOST=$DB_HOST LOG_LEVEL=$LOG_LEVEL; sleep 3600"]
+      env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: notes-config
+              key: DATABASE_HOST    # FIX: reference the key that actually exists
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: notes-config
+              key: LOG_LEVEL

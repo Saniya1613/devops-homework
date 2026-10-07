@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mount-pod
+spec:
+  containers:
+    - name: web
+      image: nginx:1.27-alpine
+      volumeMounts:
+        - name: config
+          mountPath: /etc/app
+        - name: creds
+          mountPath: /etc/creds
+          readOnly: true
+  volumes:
+    - name: config
+      configMap:
+        name: app-config        # BUG: this ConfigMap was never created
+    - name: creds
+      secret:
+        secretName: app-secret  # BUG: this Secret was never created

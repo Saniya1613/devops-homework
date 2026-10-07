@@ -1,0 +1,21 @@
+# Source: ref scenarios/scenario-5-oomkilled/broken.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oom-pod
+spec:
+  containers:
+    - name: memory-leaker
+      image: python:3.11-alpine
+      command:
+        - "python3"
+        - "-c"
+        - |
+          # BUG: allocates far more RAM than the 20Mi limit
+          print("Allocating memory rapidly...")
+          chunks = []
+          for i in range(100):
+              chunks.append(b"x" * (10 * 1024 * 1024))
+      resources:
+        limits:
+          memory: "20Mi"

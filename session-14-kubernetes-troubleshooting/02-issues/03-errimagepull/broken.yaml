@@ -1,0 +1,10 @@
+# Based on ref scenarios/scenario-2-imagepull/broken.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: errpull-pod
+spec:
+  containers:
+    - name: web-app
+      # BUG: repository name does not exist (typo) - registry refuses the pull
+      image: saniya1613/yatri-api-service:v999-invalid-tag-does-not-exist

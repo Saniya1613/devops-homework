@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: oom-pod
+spec:
+  containers:
+    - name: memory-leaker
+      image: python:3.11-alpine
+      command:
+        - "python3"
+        - "-u"
+        - "-c"
+        - |
+          # FIX: bounded allocation (50 MB) + a limit sized for it
+          import time
+          print("Allocating 50 MB...")
+          chunks = [b"x" * (10 * 1024 * 1024) for i in range(5)]
+          print("Done, holding memory")
+          while True:
+              time.sleep(30)
+      resources:
+        requests:
+          memory: "64Mi"
+        limits:
+          memory: "128Mi"

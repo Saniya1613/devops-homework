@@ -1,0 +1,59 @@
+# Based on ref 01-kubectl-get / 03-kubectl-logs / 04-kubectl-exec (devops-heros session-14)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  labels:
+    app: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.27
+          ports:
+            - containerPort: 80
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits: { cpu: 100m, memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: logs-demo
+  labels:
+    app: logs-demo
+spec:
+  containers:
+    - name: app
+      image: busybox:1.36
+      command:
+        - sh
+        - -c
+        - |
+          echo "Application started"
+          echo "Connecting to database..."
+          echo "Database connection successful"
+          echo "Application is running"
+          while true; do
+            echo "$(date '+%H:%M:%S') Application is healthy"
+            sleep 5
+          done
