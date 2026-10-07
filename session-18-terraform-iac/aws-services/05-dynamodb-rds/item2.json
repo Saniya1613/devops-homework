@@ -1,0 +1,7 @@
+{
+  "StudentId": {"S": "24bcs10246"},
+  "Session":   {"N": "19"},
+  "Topic":     {"S": "Cloud + Terraform"},
+  "Status":    {"S": "In progress"},
+  "Tags":      {"SS": ["vpc", "ec2", "s3"]}
+}

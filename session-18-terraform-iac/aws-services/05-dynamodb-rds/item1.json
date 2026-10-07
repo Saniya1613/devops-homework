@@ -1,0 +1,6 @@
+{
+  "StudentId": {"S": "24bcs10246"},
+  "Session":   {"N": "18"},
+  "Topic":     {"S": "Terraform IaC"},
+  "Status":    {"S": "Submitted"}
+}

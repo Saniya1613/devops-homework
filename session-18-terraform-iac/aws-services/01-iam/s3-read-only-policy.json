@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ListOnlyTheDemoBucket",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::saniya-24bcs10246-demo-bucket"
+    },
+    {
+      "Sid": "ReadObjectsInTheDemoBucket",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject"],
+      "Resource": "arn:aws:s3:::saniya-24bcs10246-demo-bucket/*"
+    }
+  ]
+}

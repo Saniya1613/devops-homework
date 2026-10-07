@@ -1,0 +1,9 @@
+aws_region         = "ap-south-1"
+project_name       = "s19-mini"
+vpc_cidr           = "10.20.0.0/16"
+public_subnet_cidr = "10.20.1.0/24"
+availability_zone  = "ap-south-1a"
+allowed_ssh_cidr   = "0.0.0.0/0"
+ami_id             = "ami-df5de72bdb3b" # an AMI id LocalStack accepts; replace for real AWS
+instance_type      = "t2.micro"
+bucket_name        = "saniya-24bcs10246-s19-assets"

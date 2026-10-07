@@ -1,0 +1,23 @@
+# Deploys 3 different types of applications with Docker
+# (source code + Dockerfiles live in ../../session-06-docker-fundamentals)
+services:
+  node-app:
+    build: ../../session-06-docker-fundamentals/nodejs-app
+    image: saniya/nodejs-app:1.0
+    container_name: s7-node
+    ports: ["3000:3000"]
+    restart: unless-stopped
+
+  python-app:
+    build: ../../session-06-docker-fundamentals/python-app
+    image: saniya/python-app:1.0
+    container_name: s7-python
+    ports: ["5000:5000"]
+    restart: unless-stopped
+
+  java-app:
+    build: ../../session-06-docker-fundamentals/java-app
+    image: saniya/java-app:1.0
+    container_name: s7-java
+    ports: ["8081:8080"]
+    restart: unless-stopped

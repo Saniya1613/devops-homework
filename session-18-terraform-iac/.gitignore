@@ -1,0 +1,7 @@
+# Terraform local working files – never commit
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# .terraform.lock.hcl is intentionally committed (pins provider versions)
