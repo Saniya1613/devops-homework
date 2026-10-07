@@ -1,0 +1,26 @@
+{
+  "name": "session16-cicd-demo",
+  "version": "1.0.0",
+  "description": "Session 16 – CI/CD with GitHub Actions demo app (Saniya Sanjiv Patil, 24bcs10246)",
+  "main": "src/server.js",
+  "private": true,
+  "scripts": {
+    "start": "node src/server.js",
+    "lint": "eslint .",
+    "test": "node --test --test-reporter=spec --test-reporter-destination=stdout --test-reporter=junit --test-reporter-destination=reports/junit.xml test/*.test.js",
+    "build": "sh scripts/build.sh",
+    "pretest": "node -e \"require('fs').mkdirSync('reports',{recursive:true})\""
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "eslint": "^9.39.5",
+    "globals": "^17.13.0"
+  }
+}

@@ -1,0 +1,40 @@
+# Custom SAST rules for this project (used together with the Semgrep registry
+# rulesets p/python, p/flask and p/secrets in the pipeline)
+rules:
+  - id: flask-debug-enabled
+    languages: [python]
+    severity: ERROR
+    message: Flask app started with debug=True – the Werkzeug debugger allows remote code execution.
+    pattern: $APP.run(..., debug=True, ...)
+
+  - id: subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: subprocess called with shell=True – command injection risk.
+    pattern-either:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+      - pattern: os.system(...)
+
+  - id: python-eval-exec
+    languages: [python]
+    severity: ERROR
+    message: eval()/exec() on dynamic input allows arbitrary code execution.
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+
+  - id: hardcoded-secret-assignment
+    languages: [python]
+    severity: ERROR
+    message: Possible hard-coded credential – load secrets from environment variables / Kubernetes Secrets.
+    patterns:
+      - pattern: $NAME = "..."
+      - metavariable-regex:
+          metavariable: $NAME
+          regex: (?i).*(password|passwd|secret|api_key|token).*
+
+  - id: requests-verify-false
+    languages: [python]
+    severity: WARNING
+    message: TLS certificate verification disabled.
+    pattern: requests.$M(..., verify=False, ...)

@@ -1,0 +1,9 @@
+node_modules
+dist
+reports
+*.tar.gz
+screenshots
+README.md
+k8s
+test
+.git

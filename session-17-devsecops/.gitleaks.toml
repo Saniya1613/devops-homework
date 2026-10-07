@@ -1,0 +1,21 @@
+# gitleaks configuration – extend the built-in rule set (AWS keys, GitHub tokens,
+# private keys, Slack/Stripe tokens, generic API keys, ...) and add one custom rule.
+title = "session-17-devsecops gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "hardcoded-password-assignment"
+description = "Hard-coded password assignment"
+regex = '''(?i)(?:password|passwd|pwd)\s*[:=]\s*["']([^"'\s]{8,})["']'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+[allowlist]
+description = "Files that can never contain real secrets"
+paths = [
+  '''screenshots/''',
+  '''reports/''',
+  '''(.*?)\.(png|jpg|svg)$''',
+]

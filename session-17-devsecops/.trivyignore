@@ -1,0 +1,4 @@
+# Accepted risks (CVE IDs), one per line, with a justification and review date.
+# Currently empty: the image and dependencies have no HIGH/CRITICAL findings.
+# Example:
+# CVE-2099-12345  # not reachable in our code path – review by 2026-12-31

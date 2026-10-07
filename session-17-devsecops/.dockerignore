@@ -1,0 +1,14 @@
+.git
+.venv
+venv
+tests
+k8s
+scripts
+reports
+screenshots
+README.md
+**/__pycache__
+.pytest_cache
+.semgrep.yml
+.gitleaks.toml
+.trivyignore
