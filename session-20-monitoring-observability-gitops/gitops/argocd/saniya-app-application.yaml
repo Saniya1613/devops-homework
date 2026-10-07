@@ -1,0 +1,22 @@
+# Points at THIS homework repo. It works once the repo is pushed to GitHub (it is not part of the live demo).
+# kubectl apply -f gitops/argocd/saniya-app-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: saniya-gitops-web
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Saniya1613/devops-homework
+    targetRevision: main
+    path: session-20-monitoring-observability-gitops/gitops/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: s20-gitops-app
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

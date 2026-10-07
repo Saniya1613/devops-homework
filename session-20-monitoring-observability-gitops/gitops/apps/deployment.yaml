@@ -1,0 +1,25 @@
+# Desired state stored in Git. Argo CD keeps the cluster equal to this file.
+# Adapted from devops-heros/session20-monitoring-observability-gitops/08-mini-project/app
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saniya-gitops-web
+  namespace: s20-gitops-app
+  labels: {app: saniya-gitops-web}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: saniya-gitops-web}
+  template:
+    metadata:
+      labels: {app: saniya-gitops-web}
+    spec:
+      containers:
+        - name: web
+          image: nginx:1.27-alpine
+          ports: [{containerPort: 80}]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          readinessProbe:
+            httpGet: {path: /, port: 80}

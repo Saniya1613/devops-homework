@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: saniya-gitops-web
+  namespace: s20-gitops-app
+spec:
+  selector: {app: saniya-gitops-web}
+  ports:
+    - {port: 80, targetPort: 80}

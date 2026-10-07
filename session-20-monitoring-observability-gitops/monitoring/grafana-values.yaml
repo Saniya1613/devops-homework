@@ -1,0 +1,25 @@
+# Minimal Grafana for the lab. Anonymous viewer access is enabled ONLY so the dashboard can be screenshotted headlessly.
+adminUser: admin
+adminPassword: Saniya@123          # demo password, not a real secret
+persistence:
+  enabled: false
+resources:
+  requests: {cpu: 50m, memory: 96Mi}
+  limits: {memory: 256Mi}
+grafana.ini:
+  auth.anonymous:
+    enabled: true
+    org_role: Viewer
+  analytics:
+    check_for_updates: false
+    reporting_enabled: false
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.s20-monitoring.svc.cluster.local
+        isDefault: true

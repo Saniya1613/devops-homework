@@ -1,0 +1,58 @@
+# Lightweight Prometheus (prometheus-community/prometheus chart) for a small single-node k3s lab.
+# Components kept: prometheus-server, kube-state-metrics, node-exporter.
+alertmanager:
+  enabled: false          # alerts are still evaluated by Prometheus and visible in /alerts + /api/v1/alerts
+prometheus-pushgateway:
+  enabled: false
+prometheus-node-exporter:
+  resources:
+    requests: {cpu: 10m, memory: 24Mi}
+    limits: {memory: 64Mi}
+kube-state-metrics:
+  resources:
+    requests: {cpu: 10m, memory: 32Mi}
+    limits: {memory: 128Mi}
+server:
+  retention: 6h
+  persistentVolume:
+    enabled: false        # emptyDir – fine for a demo
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {memory: 768Mi}
+serverFiles:
+  alerting_rules.yml:
+    groups:
+      - name: s20-homework-alerts
+        rules:
+          - alert: HighPodCPU
+            expr: sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{namespace="s20-monitoring", container!=""}[1m])) > 0.1
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} is using more than 100m CPU"
+              description: "CPU usage of {{ $labels.pod }} is {{ $value | humanize }} cores (threshold 0.1)."
+          - alert: HighPodMemory
+            expr: sum by (namespace, pod) (container_memory_working_set_bytes{namespace="s20-monitoring", container!=""}) > 200 * 1024 * 1024
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Pod {{ $labels.pod }} uses more than 200Mi memory"
+          - alert: AppTargetDown
+            expr: up{job="kubernetes-pods", namespace="s20-monitoring"} == 0
+            for: 30s
+            labels:
+              severity: critical
+            annotations:
+              summary: "Scrape target {{ $labels.pod }} is down (application health)"
+          - alert: PodNotReady
+            expr: kube_pod_status_ready{namespace="s20-monitoring", condition="false"} == 1
+            for: 30s
+            labels:
+              severity: critical
+            annotations:
+              summary: "Pod {{ $labels.pod }} is not Ready (readiness probe failing)"

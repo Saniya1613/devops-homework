@@ -1,0 +1,21 @@
+# Used in the live demo: Argo CD's public example repo (guestbook UI).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: s20-gitops
+  syncPolicy:
+    automated:
+      prune: true       # delete resources that were removed from Git
+      selfHeal: true    # revert manual changes made directly in the cluster
+    syncOptions:
+      - CreateNamespace=true
