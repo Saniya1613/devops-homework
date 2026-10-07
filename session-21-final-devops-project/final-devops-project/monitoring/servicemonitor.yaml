@@ -1,0 +1,15 @@
+# For clusters running the Prometheus Operator (kube-prometheus-stack). Also rendered by the Helm chart when the CRD exists.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: taskboard-backend
+  namespace: s21-final
+  labels:
+    release: kube-prometheus-stack
+spec:
+  selector:
+    matchLabels: {app: taskboard-backend}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s

@@ -1,0 +1,23 @@
+# Plain manifests (rendered from ../helm/taskboard with release name 'taskboard', then cleaned up)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  namespace: s21-final
+  name: taskboard
+  labels:
+    app.kubernetes.io/part-of: taskboard
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: taskboard.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend: {service: {name: taskboard-backend, port: {number: 8000}}}
+          - path: /health
+            pathType: Exact
+            backend: {service: {name: taskboard-backend, port: {number: 8000}}}
+          - path: /
+            pathType: Prefix
+            backend: {service: {name: taskboard-frontend, port: {number: 80}}}

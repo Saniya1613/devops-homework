@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taskboard.name" . }}-backend
+  labels: {{- include "taskboard.labels" . | nindent 4 }}
+    app: {{ include "taskboard.name" . }}-backend
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.backend.replicas }}
+  {{- end }}
+  selector:
+    matchLabels: {app: {{ include "taskboard.name" . }}-backend}
+  template:
+    metadata:
+      labels: {app: {{ include "taskboard.name" . }}-backend}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.backend.port }}"
+        prometheus.io/path: /metrics
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image }}:{{ .Values.backend.tag }}"
+          imagePullPolicy: {{ .Values.backend.pullPolicy }}
+          ports: [{name: http, containerPort: {{ .Values.backend.port }}}]
+          envFrom:
+            - configMapRef: {name: {{ include "taskboard.name" . }}-config}
+            - secretRef: {name: {{ include "taskboard.name" . }}-db}
+          readinessProbe:
+            httpGet: {path: /ready, port: http}     # checks DB connectivity
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            initialDelaySeconds: 20
+            periodSeconds: 15
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+          resources: {{- toYaml .Values.backend.resources | nindent 12 }}
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "taskboard.name" . }}-backend
+  labels: {{- include "taskboard.labels" . | nindent 4 }}
+    app: {{ include "taskboard.name" . }}-backend
+spec:
+  selector: {app: {{ include "taskboard.name" . }}-backend}
+  ports: [{name: http, port: 8000, targetPort: http}]

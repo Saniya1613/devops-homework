@@ -1,0 +1,17 @@
+# Plain manifests (rendered from ../helm/taskboard with release name 'taskboard', then cleaned up)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  namespace: s21-final
+  name: taskboard-backend
+  labels:
+    app.kubernetes.io/part-of: taskboard
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: taskboard-backend}
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 60}

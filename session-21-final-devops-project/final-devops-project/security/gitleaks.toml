@@ -1,0 +1,9 @@
+# Gitleaks config: default rules + allowlist for the documented demo credentials
+title = "taskboard gitleaks config"
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local demo values (not real secrets)"
+regexes = ['''Saniya@123''', '''taskboard:taskboard''']
+paths = ['''security/reports/.*''']

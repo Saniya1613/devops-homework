@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: taskboard-alerts
+  namespace: s21-final
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: taskboard
+      rules:
+        - alert: TaskBoardBackendDown
+          expr: up{job=~".*taskboard-backend.*"} == 0
+          for: 1m
+          labels: {severity: critical}
+          annotations: {summary: "TaskBoard backend target {{ $labels.instance }} is down"}
+        - alert: TaskBoardHigh5xxRate
+          expr: sum(rate(http_requests_total{status="5xx"}[5m])) / sum(rate(http_requests_total[5m])) > 0.05
+          for: 5m
+          labels: {severity: warning}
+          annotations: {summary: "More than 5% of TaskBoard API requests fail"}
+        - alert: TaskBoardHighLatencyP95
+          expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 0.5
+          for: 5m
+          labels: {severity: warning}
+          annotations: {summary: "p95 latency above 500ms"}
+        - alert: TaskBoardPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="s21-final"}[15m]) > 3
+          labels: {severity: warning}
+          annotations: {summary: "Pod {{ $labels.pod }} restarted more than 3 times in 15m"}

@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "taskboard.name" . }}-frontend
+  labels: {{- include "taskboard.labels" . | nindent 4 }}
+    app: {{ include "taskboard.name" . }}-frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels: {app: {{ include "taskboard.name" . }}-frontend}
+  template:
+    metadata:
+      labels: {app: {{ include "taskboard.name" . }}-frontend}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 101, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image }}:{{ .Values.frontend.tag }}"
+          imagePullPolicy: {{ .Values.frontend.pullPolicy }}
+          env:
+            - name: BACKEND_URL
+              value: http://{{ include "taskboard.name" . }}-backend.{{ .Release.Namespace }}.svc.cluster.local:8000   # FQDN: nginx resolver ignores search domains
+          ports: [{name: http, containerPort: {{ .Values.frontend.port }}}]
+          readinessProbe: {httpGet: {path: /nginx-health, port: http}, initialDelaySeconds: 3, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /nginx-health, port: http}, initialDelaySeconds: 10, periodSeconds: 15}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}                     # nginx pid + cache
+            - {name: conf, mountPath: /etc/nginx/conf.d}       # envsubst renders default.conf here
+          resources: {{- toYaml .Values.frontend.resources | nindent 12 }}
+      volumes:
+        - {name: tmp, emptyDir: {}}
+        - {name: conf, emptyDir: {}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "taskboard.name" . }}-frontend
+  labels: {{- include "taskboard.labels" . | nindent 4 }}
+spec:
+  selector: {app: {{ include "taskboard.name" . }}-frontend}
+  ports: [{name: http, port: 80, targetPort: http}]   # service port 80 -> container 8080

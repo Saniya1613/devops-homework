@@ -1,0 +1,7 @@
+# trivy --config security/trivy.yaml image taskboard-backend:1.0.0
+severity: [HIGH, CRITICAL]
+exit-code: 1
+vulnerability:
+  ignore-unfixed: true
+scan:
+  scanners: [vuln, secret]

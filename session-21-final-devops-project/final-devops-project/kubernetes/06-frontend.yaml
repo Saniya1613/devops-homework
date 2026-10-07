@@ -1,0 +1,53 @@
+# Plain manifests (rendered from ../helm/taskboard with release name 'taskboard', then cleaned up)
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: s21-final
+  name: taskboard-frontend
+  labels:
+    app.kubernetes.io/part-of: taskboard
+spec:
+  selector: {app: taskboard-frontend}
+  ports: [{name: http, port: 80, targetPort: http}]   # service port 80 -> container 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: s21-final
+  name: taskboard-frontend
+  labels:
+    app.kubernetes.io/part-of: taskboard
+    app: taskboard-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: taskboard-frontend}
+  template:
+    metadata:
+      labels: {app: taskboard-frontend}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 101, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: frontend
+          image: "taskboard-frontend:1.0.1"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: BACKEND_URL
+              value: http://taskboard-backend.s21-final.svc.cluster.local:8000   # FQDN: nginx resolver ignores search domains
+          ports: [{name: http, containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /nginx-health, port: http}, initialDelaySeconds: 3, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /nginx-health, port: http}, initialDelaySeconds: 10, periodSeconds: 15}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: tmp, mountPath: /tmp}                     # nginx pid + cache
+            - {name: conf, mountPath: /etc/nginx/conf.d}       # envsubst renders default.conf here
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 16Mi
+      volumes:
+        - {name: tmp, emptyDir: {}}
+        - {name: conf, emptyDir: {}}

@@ -1,0 +1,14 @@
+# Plain manifests (rendered from ../helm/taskboard with release name 'taskboard', then cleaned up)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: s21-final
+  name: taskboard-config
+  labels:
+    app.kubernetes.io/part-of: taskboard
+data:
+  DB_HOST: taskboard-postgres
+  APP_ENV: "k3s-local"
+  DB_NAME: "taskboard"
+  DB_PORT: "5432"
+  LOG_LEVEL: "INFO"

@@ -1,0 +1,21 @@
+backend:
+  image: ghcr.io/saniya1613/taskboard-backend
+  tag: "REPLACED_BY_CI"             # CI sets --set backend.tag=${GITHUB_SHA}
+  pullPolicy: Always
+  replicas: 3
+frontend:
+  image: ghcr.io/saniya1613/taskboard-frontend
+  tag: "REPLACED_BY_CI"
+  pullPolicy: Always
+  replicas: 2
+config:
+  APP_ENV: production
+  LOG_LEVEL: WARNING
+ingress:
+  host: taskboard.example.com
+hpa:
+  minReplicas: 3
+  maxReplicas: 10
+postgres:
+  storage: 10Gi
+  storageClass: gp3

@@ -1,0 +1,8 @@
+apiVersion: v2
+name: taskboard
+description: TaskBoard (FastAPI + React + PostgreSQL) – Session 21 final DevOps project (adapted from devops-heros/session21-python)
+type: application
+version: 1.1.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Saniya Sanjiv Patil

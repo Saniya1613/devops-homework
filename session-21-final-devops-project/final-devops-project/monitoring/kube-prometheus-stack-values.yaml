@@ -1,0 +1,10 @@
+# helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack -n monitoring --create-namespace -f monitoring/kube-prometheus-stack-values.yaml
+grafana:
+  enabled: true
+  adminPassword: Saniya@123   # demo only
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false   # pick up ServiceMonitors from every namespace
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    retention: 7d
