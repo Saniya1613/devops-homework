@@ -286,5 +286,6 @@ jobs:
           kubectl get pods -A -o wide
           kubectl get events -n careslot --sort-by=.lastTimestamp | tail -30
           for p in $(kubectl get pods -n careslot -o name); do
-            echo "=== $p"; kubectl logs -n careslot "$p" --all-containers --tail=60 || true
+            echo "=== $p"; kubectl logs -n careslot "$p" --all-containers --prefix --tail=60 || true
+            kubectl describe -n careslot "$p" | sed -n '/Init Containers:/,/Conditions:/p;/Events:/,$p' || true
           done

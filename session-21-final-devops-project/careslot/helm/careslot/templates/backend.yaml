@@ -29,8 +29,11 @@ spec:
       initContainers:
         - name: wait-for-db          # avoid crash loops while PostgreSQL is still starting
           image: {{ .Values.postgres.image }}
-          command: ["sh", "-c", "until pg_isready -h $DB_HOST -p $DB_PORT; do echo waiting for db; sleep 2; done"]
-          envFrom: [{configMapRef: {name: {{ include "careslot.name" . }}-config}}]
+          # -U is required: as a non-root uid with no passwd entry, pg_isready otherwise exits "no attempt"
+          command: ["sh", "-c", "until pg_isready -h $DB_HOST -p $DB_PORT -U $DB_USER; do echo waiting for db; sleep 2; done"]
+          envFrom:
+            - configMapRef: {name: {{ include "careslot.name" . }}-config}
+            - secretRef: {name: {{ include "careslot.name" . }}-db}
           securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
           resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {cpu: 50m, memory: 32Mi}}
       containers:
