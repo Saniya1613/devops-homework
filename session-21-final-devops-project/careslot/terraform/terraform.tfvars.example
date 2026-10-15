@@ -1,0 +1,13 @@
+# Copy to terraform.tfvars and adjust. terraform.tfvars is git-ignored.
+# AWS credentials are NOT set here - use `aws configure` or environment variables.
+aws_region          = "ap-south-1"
+environment         = "dev"
+owner               = "saniya-24bcs10246"
+cluster_name        = "careslot-eks"
+enable_nat_gateway  = false            # true = private nodes behind a NAT gateway (costs more)
+node_instance_types = ["t3.medium"]
+node_capacity_type  = "SPOT"           # cheapest for a short demo
+node_desired_size   = 2
+node_min_size       = 1
+node_max_size       = 3
+# public_access_cidrs = ["<your-public-ip>/32"]
