@@ -1,54 +1,44 @@
-# Session 21 – Final DevOps Project (TaskBoard): end-to-end pipeline
-# Code -> Build & Test -> Security scanning (SAST / SCA / secrets) -> Docker images -> Image scan gate
-#      -> Push to GHCR (container registry) -> Deploy with Helm to Kubernetes (kind cluster in the runner) -> Smoke test
-# Runs without any repo secrets: GHCR uses the built-in GITHUB_TOKEN, Kubernetes is a throw-away kind cluster.
-name: Session 21 - Final Project Pipeline
+# Session 21 - Final DevOps Project: CareSlot (clinic appointment booking)
+#
+#   push to main
+#     -> 1. Test        pytest, frontend build + test, helm lint, terraform validate
+#     -> 2. Security    Semgrep (SAST), pip-audit + Trivy fs (SCA), Trivy config (IaC), gitleaks (secrets)
+#     -> 3. Build       docker build both images, Trivy image gate (HIGH/CRITICAL), push to GHCR tagged with the commit SHA
+#     -> 4. Deploy      kind cluster + ingress-nginx + metrics-server + kube-prometheus-stack,
+#                       helm upgrade --install, smoke test through the Ingress, Prometheus target UP check
+#
+# No repository secrets are needed: GHCR uses the built-in GITHUB_TOKEN and the cluster is a throw-away kind cluster.
+# The same Helm command deploys to the Terraform EKS cluster (see the project README, section 9).
+name: Session 21 - CareSlot Pipeline
 
 on:
   push:
     branches: [main]
     paths:
-      - "session-21-final-devops-project/**"
+      - "session-21-final-devops-project/careslot/**"
       - ".github/workflows/session21-final-project.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "session-21-final-devops-project/careslot/**"
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: careslot-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  PROJECT: session-21-final-devops-project/final-devops-project
-  TRIVY_IMAGE: aquasec/trivy:0.75.0
+  PROJECT: session-21-final-devops-project/careslot
+  TRIVY_IMAGE: aquasec/trivy:0.69.3
   GITLEAKS_IMAGE: zricethezav/gitleaks:v8.30.1
 
 jobs:
-  # ---------------------------------------------------------------- 1. Build & unit tests
+  # ------------------------------------------------------------------ 1. Build & test
   test:
-    name: 1. Build & Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Backend unit tests (pytest)
-        working-directory: ${{ env.PROJECT }}/application/backend
-        run: |
-          pip install -r requirements.txt pytest
-          pytest -q
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-      - name: Frontend build + test
-        working-directory: ${{ env.PROJECT }}/application/frontend
-        run: npm install --no-audit --no-fund && npm run build && npm test
-      - uses: azure/setup-helm@v4
-      - name: Helm lint
-        working-directory: ${{ env.PROJECT }}
-        run: helm lint helm/taskboard
-
-  # ---------------------------------------------------------------- 2. Security scanning
-  security:
-    name: 2. Security Scans (SAST, SCA, secrets)
+    name: 1. Test
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -58,26 +48,74 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: SAST – Semgrep
+          cache: pip
+          cache-dependency-path: ${{ env.PROJECT }}/backend/requirements*.txt
+      - name: Backend tests (pytest - fails the build on any failing test)
+        working-directory: ${{ env.PROJECT }}/backend
+        run: |
+          pip install -r requirements-dev.txt
+          pytest -v
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Frontend build + smoke test
+        working-directory: ${{ env.PROJECT }}/frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          npm test
+      - uses: azure/setup-helm@v4
+      - name: Helm lint (default, dev and EKS values)
+        run: |
+          helm lint helm/careslot
+          helm lint helm/careslot -f helm/careslot/values-dev.yaml
+          helm lint helm/careslot -f helm/careslot/values-eks.yaml
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - name: Terraform fmt + validate
+        working-directory: ${{ env.PROJECT }}/terraform
+        run: |
+          terraform fmt -check -recursive
+          terraform init -backend=false -input=false
+          terraform validate
+
+  # ------------------------------------------------------------------ 2. Security scanning
+  security:
+    name: 2. Security (SAST, SCA, IaC, secrets)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.PROJECT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: SAST - Semgrep
         run: |
           pip install "semgrep==1.179.0"
-          semgrep scan --config p/python --error --quiet application/backend
-      - name: SCA – pip-audit
+          semgrep scan --config p/python --error --quiet backend
+      - name: SCA - pip-audit
         run: |
           pip install "pip-audit==2.10.1"
-          pip-audit -r application/backend/requirements.txt
-      - name: SCA – Trivy filesystem scan
+          pip-audit -r backend/requirements.txt
+      - name: SCA - Trivy filesystem (dependencies)
         run: |
           docker run --rm -v "$PWD":/src -w /src "$TRIVY_IMAGE" fs --quiet --scanners vuln \
-            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 application
-      - name: Secret scanning – gitleaks
+            --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --skip-dirs frontend/node_modules .
+      - name: IaC - Trivy config (Terraform, Helm, Kubernetes, Dockerfiles)
+        run: |
+          docker run --rm -v "$PWD":/src -w /src "$TRIVY_IMAGE" config --quiet \
+            --severity HIGH,CRITICAL --exit-code 1 .
+      - name: Secrets - gitleaks
         run: |
           docker run --rm -v "$PWD":/src -w /src "$GITLEAKS_IMAGE" dir . \
             --config security/gitleaks.toml --redact --verbose --exit-code 1
 
-  # ---------------------------------------------------------------- 3. Docker build + image scan gate + push
+  # ------------------------------------------------------------------ 3. Docker build + Trivy gate + push
   build-scan-push:
-    name: 3. Docker Build, Image Scan & Push (GHCR)
+    name: 3. Build, Trivy scan & push to GHCR
     needs: [test, security]
     runs-on: ubuntu-latest
     permissions:
@@ -86,88 +124,167 @@ jobs:
     defaults:
       run:
         working-directory: ${{ env.PROJECT }}
+    outputs:
+      tag: ${{ steps.names.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
-      - name: Image names (GHCR needs lowercase)
+      - name: Image names (GHCR needs lowercase; tag = commit SHA, never "latest")
+        id: names
         run: |
-          echo "BACKEND=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/taskboard-backend:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
-          echo "FRONTEND=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/taskboard-frontend:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "BACKEND=ghcr.io/$OWNER/careslot-backend:$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "FRONTEND=ghcr.io/$OWNER/careslot-frontend:$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "tag=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
       - name: Build images
         run: |
-          docker build -f docker/backend.Dockerfile  -t "$BACKEND"  application/backend
-          docker build -f docker/frontend.Dockerfile -t "$FRONTEND" application/frontend
-      - name: Security gate – Trivy image scan (fail on fixable HIGH/CRITICAL)
+          docker build -t "$BACKEND" \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+            --label org.opencontainers.image.revision=$GITHUB_SHA ./backend
+          docker build -t "$FRONTEND" \
+            --label org.opencontainers.image.source=https://github.com/${{ github.repository }} \
+            --label org.opencontainers.image.revision=$GITHUB_SHA ./frontend
+          docker images | grep careslot
+      - name: Trivy image scan - report (all HIGH/CRITICAL, including ones with no fix yet)
+        run: |
+          for img in "$BACKEND" "$FRONTEND"; do
+            echo "::group::Trivy report $img"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image --quiet \
+              --severity HIGH,CRITICAL --scanners vuln "$img" || true
+            echo "::endgroup::"
+          done
+      - name: Trivy image scan - gate (fail on fixable HIGH/CRITICAL)
         run: |
           for img in "$BACKEND" "$FRONTEND"; do
             docker run --rm -v /var/run/docker.sock:/var/run/docker.sock "$TRIVY_IMAGE" image --quiet \
-              --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$img"
+              --severity HIGH,CRITICAL --ignore-unfixed --scanners vuln --exit-code 1 "$img"
           done
       - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push images to GHCR
+        if: github.event_name != 'pull_request'
         run: |
           docker push "$BACKEND"
           docker push "$FRONTEND"
+          echo "### Images pushed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`$BACKEND\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- \`$FRONTEND\`" >> "$GITHUB_STEP_SUMMARY"
       - name: Save images for the deploy job
-        run: docker save "$BACKEND" "$FRONTEND" -o /tmp/taskboard-images.tar
+        run: docker save "$BACKEND" "$FRONTEND" -o /tmp/careslot-images.tar
       - uses: actions/upload-artifact@v4
         with:
-          name: s21-images
-          path: /tmp/taskboard-images.tar
+          name: careslot-images
+          path: /tmp/careslot-images.tar
           retention-days: 1
 
-  # ---------------------------------------------------------------- 4. Deploy to Kubernetes with Helm
+  # ------------------------------------------------------------------ 4. Deploy with Helm + verify
   deploy:
-    name: 4. Deploy to Kubernetes (Helm on kind)
+    name: 4. Deploy to Kubernetes (Helm) + verify
     needs: build-scan-push
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: ${{ env.PROJECT }}
+    env:
+      TAG: ${{ needs.build-scan-push.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          name: s21-images
+          name: careslot-images
           path: /tmp
-      - name: Create kind cluster
-        uses: helm/kind-action@v1
+      - name: kind cluster config (port 80 -> ingress controller)
+        run: |
+          cat > /tmp/kind.yaml <<'EOF'
+          kind: Cluster
+          apiVersion: kind.x-k8s.io/v1alpha4
+          nodes:
+            - role: control-plane
+              kubeadmConfigPatches:
+                - |
+                  kind: InitConfiguration
+                  nodeRegistration:
+                    kubeletExtraArgs:
+                      node-labels: "ingress-ready=true"
+              extraPortMappings:
+                - {containerPort: 80, hostPort: 80}
+          EOF
+      - uses: helm/kind-action@v1
         with:
-          cluster_name: s21-kind
+          cluster_name: careslot
+          config: /tmp/kind.yaml
       - uses: azure/setup-helm@v4
-      - name: Load images into kind
+      - name: Load the freshly built images into kind
         run: |
-          docker load -i /tmp/taskboard-images.tar
-          OWNER="${GITHUB_REPOSITORY_OWNER,,}"; TAG="${GITHUB_SHA::7}"
-          kind load docker-image "ghcr.io/$OWNER/taskboard-backend:$TAG" "ghcr.io/$OWNER/taskboard-frontend:$TAG" --name s21-kind
-          echo "OWNER=$OWNER" >> "$GITHUB_ENV"; echo "TAG=$TAG" >> "$GITHUB_ENV"
-      - name: helm upgrade --install
+          docker load -i /tmp/careslot-images.tar
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "OWNER=$OWNER" >> "$GITHUB_ENV"
+          kind load docker-image "ghcr.io/$OWNER/careslot-backend:$TAG" "ghcr.io/$OWNER/careslot-frontend:$TAG" --name careslot
+      - name: Cluster add-ons - ingress-nginx, metrics-server, kube-prometheus-stack
         run: |
-          helm upgrade --install taskboard helm/taskboard -n taskboard --create-namespace \
-            --set backend.image=ghcr.io/$OWNER/taskboard-backend --set backend.tag=$TAG \
-            --set frontend.image=ghcr.io/$OWNER/taskboard-frontend --set frontend.tag=$TAG \
-            --set postgres.storageClass=standard --set ingress.enabled=false \
-            --set monitoring.serviceMonitor.enabled=false \
+          kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0/deploy/static/provider/kind/deploy.yaml
+          helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+          helm upgrade --install metrics-server metrics-server/metrics-server -n kube-system \
+            --set 'args={--kubelet-insecure-tls}' --wait
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            -n monitoring --create-namespace -f monitoring/prometheus-values.yaml \
+            --set grafana.adminPassword="$(openssl rand -hex 12)" --wait --timeout 10m
+          kubectl wait -n ingress-nginx --for=condition=ready pod -l app.kubernetes.io/component=controller --timeout=180s
+      - name: kubectl apply -f k8s/namespace.yaml
+        run: kubectl apply -f k8s/namespace.yaml
+      - name: helm upgrade --install careslot
+        run: |
+          helm upgrade --install careslot helm/careslot -n careslot \
+            -f helm/careslot/values-dev.yaml \
+            --set backend.image=ghcr.io/$OWNER/careslot-backend --set backend.tag=$TAG \
+            --set frontend.image=ghcr.io/$OWNER/careslot-frontend --set frontend.tag=$TAG \
             --wait --timeout 6m
-      - name: Verify deployment
+          kubectl apply -f monitoring/careslot-alerts.yaml
+      - name: Verify the release
         run: |
-          kubectl get deploy,sts,pods,svc,hpa,pvc -n taskboard
-          kubectl rollout status deploy -n taskboard --timeout=180s
-      - name: Smoke test (backend /health through the Service)
+          helm list -n careslot
+          kubectl get deploy,pods,svc,ingress,hpa,pvc -n careslot -o wide
+          kubectl rollout status deploy/careslot-backend -n careslot --timeout=180s
+          kubectl rollout status deploy/careslot-frontend -n careslot --timeout=180s
+      - name: Smoke test through the Ingress (careslot.local -> 127.0.0.1)
         run: |
-          SVC=$(kubectl get svc -n taskboard -o name | grep backend | head -1)
-          kubectl port-forward -n taskboard "$SVC" 18000:8000 >/tmp/pf.log 2>&1 &
+          H="Host: careslot.local"
+          for i in $(seq 1 20); do curl -sf -H "$H" http://127.0.0.1/api/doctors >/dev/null && break; sleep 3; done
+          curl -sf -H "$H" http://127.0.0.1/ | grep -q CareSlot && echo "frontend OK via Ingress /"
+          curl -sf -H "$H" http://127.0.0.1/api/doctors | python3 -c 'import json,sys; d=json.load(sys.stdin); print(len(d), "doctors via Ingress /api"); assert d'
+          curl -sf -H "$H" -X POST http://127.0.0.1/api/appointments -H 'Content-Type: application/json' \
+            -d "{\"doctor_id\":1,\"patient_name\":\"CI Smoke\",\"patient_phone\":\"+91 90000 00000\",\"scheduled_at\":\"$(date -u -d '+3 days' +%Y-%m-%dT10:00:00Z)\"}"
+          echo; curl -sf -H "$H" http://127.0.0.1/api/appointments/stats; echo
+          echo "SMOKE TEST PASSED"
+      - name: Load test + HPA status
+        run: |
+          kubectl run load --rm -i --restart=Never -n careslot --image=busybox:1.36 \
+            --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"}},"containers":[{"name":"load","image":"busybox:1.36","command":["sh","-c","end=$(($(date +%s)+60)); while [ $(date +%s) -lt $end ]; do wget -q -O- http://careslot-backend:8000/api/appointments/stats >/dev/null; done"],"securityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}}]}}' || true
+          kubectl get hpa -n careslot
+          kubectl top pods -n careslot || true
+      - name: Prometheus scrapes the backend (target UP) + Grafana dashboard loaded
+        run: |
+          kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090:9090 >/tmp/pf-prom.log 2>&1 &
           sleep 5
-          curl -sf http://127.0.0.1:18000/health && echo && echo "SMOKE TEST PASSED"
+          for i in $(seq 1 24); do
+            UP=$(curl -s 'http://127.0.0.1:9090/api/v1/query' --data-urlencode 'query=up{namespace="careslot"}' \
+                 | python3 -c 'import json,sys; r=json.load(sys.stdin)["data"]["result"]; print(sum(1 for x in r if x["value"][1]=="1"))')
+            echo "careslot targets UP: $UP"; [ "${UP:-0}" -ge 1 ] && break; sleep 5
+          done
+          [ "${UP:-0}" -ge 1 ]
+          curl -s 'http://127.0.0.1:9090/api/v1/query' --data-urlencode 'query=sum by (handler) (http_requests_total{namespace="careslot"})' | python3 -m json.tool | head -40
+          kubectl get configmap -n careslot -l grafana_dashboard=1
+          kubectl logs -n monitoring deploy/monitoring-grafana -c grafana-sc-dashboard --tail=20 | grep -i careslot || true
       - name: Debug on failure
         if: failure()
         run: |
-          kubectl get pods -n taskboard -o wide
-          for p in $(kubectl get pods -n taskboard -o name | grep backend); do
-            echo "=== $p (previous) ==="; kubectl logs -n taskboard "$p" --previous --tail=60 || true
-            echo "=== $p (current) ===";  kubectl logs -n taskboard "$p" --tail=60 || true
-            kubectl describe -n taskboard "$p" | sed -n '/State:/,/Ready:/p;/Events:/,$p'
+          kubectl get pods -A -o wide
+          kubectl get events -n careslot --sort-by=.lastTimestamp | tail -30
+          for p in $(kubectl get pods -n careslot -o name); do
+            echo "=== $p"; kubectl logs -n careslot "$p" --all-containers --tail=60 || true
           done
