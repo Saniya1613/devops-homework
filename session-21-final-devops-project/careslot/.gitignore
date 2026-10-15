@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+test*.db
+# Node
+node_modules/
+dist/
+# Secrets / local config
+.env
+*.pem
+kubeconfig*
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+tfplan
+crash.log
+# OS
+.DS_Store
