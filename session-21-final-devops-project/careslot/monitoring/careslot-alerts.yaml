@@ -1,0 +1,42 @@
+# kubectl apply -f monitoring/careslot-alerts.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: careslot-alerts
+  namespace: careslot
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: careslot.rules
+      rules:
+        - alert: CareSlotBackendDown
+          expr: up{namespace="careslot", job=~".*careslot-backend.*"} == 0
+          for: 1m
+          labels: {severity: critical}
+          annotations:
+            summary: "CareSlot backend {{ $labels.instance }} is down"
+            description: "Prometheus cannot scrape /metrics - patients cannot book appointments."
+        - alert: CareSlotHigh5xxRate
+          expr: |
+            sum(rate(http_requests_total{namespace="careslot", status="5xx"}[5m]))
+              / clamp_min(sum(rate(http_requests_total{namespace="careslot"}[5m])), 1e-9) > 0.05
+          for: 5m
+          labels: {severity: warning}
+          annotations: {summary: "More than 5% of CareSlot API requests fail with 5xx"}
+        - alert: CareSlotSlowApi
+          expr: histogram_quantile(0.95, sum by (le) (rate(http_request_duration_seconds_bucket{namespace="careslot"}[5m]))) > 0.5
+          for: 5m
+          labels: {severity: warning}
+          annotations: {summary: "CareSlot API p95 latency is above 500 ms"}
+        - alert: CareSlotHpaAtMax
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="careslot"}
+              >= kube_horizontalpodautoscaler_spec_max_replicas{namespace="careslot"}
+          for: 10m
+          labels: {severity: warning}
+          annotations: {summary: "Backend HPA has been at max replicas for 10 minutes"}
+        - alert: CareSlotPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="careslot"}[15m]) > 3
+          labels: {severity: warning}
+          annotations: {summary: "Pod {{ $labels.pod }} restarted more than 3 times in 15 minutes"}

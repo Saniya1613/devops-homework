@@ -1,0 +1,39 @@
+# kube-prometheus-stack (Prometheus Operator + Prometheus + Grafana + kube-state-metrics + node-exporter)
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+#     -n monitoring --create-namespace -f monitoring/prometheus-values.yaml
+# The CareSlot chart ships a ServiceMonitor (label release=monitoring) and a Grafana dashboard ConfigMap.
+prometheus:
+  prometheusSpec:
+    serviceMonitorSelectorNilUsesHelmValues: false   # also pick up ServiceMonitors from other namespaces
+    ruleSelectorNilUsesHelmValues: false
+    serviceMonitorNamespaceSelector: {}
+    scrapeInterval: 15s
+    retention: 3d
+    resources:
+      requests: {cpu: 100m, memory: 400Mi}
+
+grafana:
+  enabled: true
+  # admin password: set it at install time, never in Git
+  #   --set grafana.adminPassword="$(openssl rand -base64 18)"
+  defaultDashboardsTimezone: browser
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard          # imports careslot-grafana-dashboard ConfigMap
+      searchNamespace: ALL
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests: {cpu: 10m, memory: 32Mi}
+
+# kind / small clusters cannot scrape these control-plane components
+kubeEtcd: {enabled: false}
+kubeControllerManager: {enabled: false}
+kubeScheduler: {enabled: false}
+kubeProxy: {enabled: false}
