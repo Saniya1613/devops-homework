@@ -1,0 +1,9 @@
+CareSlot {{ .Chart.AppVersion }} is deployed to namespace {{ .Release.Namespace }}.
+
+  kubectl get pods,svc,hpa,ingress -n {{ .Release.Namespace }}
+{{- if .Values.ingress.enabled }}
+  Open: http://{{ default "<load-balancer-address>" .Values.ingress.host }}/
+{{- else }}
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "careslot.name" . }}-frontend 3000:80
+  Open: http://localhost:3000/
+{{- end }}

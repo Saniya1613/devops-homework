@@ -1,0 +1,9 @@
+# Local cluster with an NGINX Ingress Controller (kind / minikube / Docker Desktop):
+#   helm upgrade --install careslot ./helm/careslot -n careslot --create-namespace -f helm/careslot/values-dev.yaml
+config:
+  APP_ENV: dev
+  CORS_ORIGINS: http://careslot.local
+ingress:
+  enabled: true
+  className: nginx
+  host: careslot.local

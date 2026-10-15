@@ -1,0 +1,23 @@
+# AWS EKS (cluster from ../../terraform). The ingress-nginx controller gets an AWS load balancer.
+#   helm upgrade --install careslot ./helm/careslot -n careslot --create-namespace -f helm/careslot/values-eks.yaml \
+#     --set backend.tag=<sha> --set frontend.tag=<sha>
+backend:
+  pullPolicy: Always
+  replicas: 2
+frontend:
+  pullPolicy: Always
+  replicas: 2
+config:
+  APP_ENV: eks
+  LOG_LEVEL: INFO
+  CORS_ORIGINS: http://careslot.local
+postgres:
+  storage: 5Gi
+  storageClass: gp2            # EKS default EBS storage class
+ingress:
+  enabled: true
+  className: nginx
+  host: ""                     # "" = match any host, so the load balancer DNS name works directly
+hpa:
+  minReplicas: 2
+  maxReplicas: 8

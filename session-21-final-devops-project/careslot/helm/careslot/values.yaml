@@ -1,0 +1,58 @@
+# Default values - a small cluster (kind / k3s / minikube). See values-dev.yaml and values-eks.yaml.
+nameOverride: ""
+
+backend:
+  image: ghcr.io/saniya1613/careslot-backend    # CI overrides the tag with the commit SHA
+  tag: "latest-local"
+  pullPolicy: IfNotPresent
+  replicas: 2
+  port: 8000
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: 500m, memory: 384Mi}
+
+frontend:
+  image: ghcr.io/saniya1613/careslot-frontend
+  tag: "latest-local"
+  pullPolicy: IfNotPresent
+  replicas: 2
+  port: 8080
+  resources:
+    requests: {cpu: 20m, memory: 32Mi}
+    limits: {cpu: 200m, memory: 128Mi}
+
+imagePullSecrets: []
+
+# -> ConfigMap (non-secret settings, injected as environment variables)
+config:
+  APP_ENV: kubernetes
+  LOG_LEVEL: INFO
+  CLINIC_NAME: CareSlot Clinic
+  DB_PORT: "5432"
+  DB_NAME: careslot
+
+postgres:
+  image: postgres:16-alpine
+  username: careslot
+  password: ""                 # empty -> a random password is generated once and kept across upgrades
+  storage: 1Gi
+  storageClass: ""             # "" = cluster default (standard on kind, gp2/gp3 on EKS, local-path on k3s)
+
+ingress:
+  enabled: false
+  className: nginx
+  host: careslot.local
+  annotations: {}
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 60
+
+monitoring:
+  serviceMonitor:
+    enabled: true              # rendered only if the Prometheus Operator CRDs exist
+    releaseLabel: monitoring   # must match the kube-prometheus-stack release name
+  grafanaDashboard:
+    enabled: true              # ConfigMap picked up by the Grafana sidecar

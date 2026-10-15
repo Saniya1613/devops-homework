@@ -1,0 +1,13 @@
+# Guard rails for the namespace (kubectl apply -f k8s/resource-quota.yaml)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: careslot-quota
+  namespace: careslot
+spec:
+  hard:
+    requests.cpu: "4"
+    requests.memory: 4Gi
+    limits.cpu: "8"
+    limits.memory: 8Gi
+    persistentvolumeclaims: "4"

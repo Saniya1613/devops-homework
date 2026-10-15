@@ -1,0 +1,12 @@
+{{- range $tier := list "backend" "frontend" }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "careslot.name" $ }}-{{ $tier }}
+  labels: {{- include "careslot.labels" $ | nindent 4 }}
+spec:
+  minAvailable: 1                        # keep the clinic online during node drains
+  selector:
+    matchLabels: {app: {{ include "careslot.name" $ }}-{{ $tier }}}
+{{- end }}

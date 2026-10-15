@@ -1,0 +1,10 @@
+# kubectl apply -f k8s/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: careslot
+  labels:
+    app.kubernetes.io/part-of: careslot
+    # Pod Security Admission: every CareSlot pod runs as non-root with dropped capabilities
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted

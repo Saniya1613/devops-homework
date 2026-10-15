@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "careslot.name" . }}-backend
+  labels: {{- include "careslot.labels" . | nindent 4 }}
+    app: {{ include "careslot.name" . }}-backend
+spec:
+  {{- if not .Values.hpa.enabled }}
+  replicas: {{ .Values.backend.replicas }}
+  {{- end }}
+  revisionHistoryLimit: 5
+  strategy:
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}   # zero-downtime rollouts
+  selector:
+    matchLabels: {app: {{ include "careslot.name" . }}-backend}
+  template:
+    metadata:
+      labels: {app: {{ include "careslot.name" . }}-backend, tier: api}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.backend.port }}"
+        prometheus.io/path: /metrics
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, seccompProfile: {type: RuntimeDefault}}
+      initContainers:
+        - name: wait-for-db          # avoid crash loops while PostgreSQL is still starting
+          image: {{ .Values.postgres.image }}
+          command: ["sh", "-c", "until pg_isready -h $DB_HOST -p $DB_PORT; do echo waiting for db; sleep 2; done"]
+          envFrom: [{configMapRef: {name: {{ include "careslot.name" . }}-config}}]
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources: {requests: {cpu: 10m, memory: 16Mi}, limits: {cpu: 50m, memory: 32Mi}}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image }}:{{ .Values.backend.tag }}"
+          imagePullPolicy: {{ .Values.backend.pullPolicy }}
+          ports: [{name: http, containerPort: {{ .Values.backend.port }}}]
+          envFrom:
+            - configMapRef: {name: {{ include "careslot.name" . }}-config}
+            - secretRef: {name: {{ include "careslot.name" . }}-db}
+          startupProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /ready, port: http}     # checks the database connection
+            periodSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: {path: /health, port: http}
+            periodSeconds: 15
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+          resources: {{- toYaml .Values.backend.resources | nindent 12 }}
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "careslot.name" . }}-backend
+  labels: {{- include "careslot.labels" . | nindent 4 }}
+    app: {{ include "careslot.name" . }}-backend
+spec:
+  type: ClusterIP
+  selector: {app: {{ include "careslot.name" . }}-backend}
+  ports: [{name: http, port: 8000, targetPort: http}]

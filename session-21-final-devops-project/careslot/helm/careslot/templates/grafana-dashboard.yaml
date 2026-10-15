@@ -1,0 +1,12 @@
+{{- if .Values.monitoring.grafanaDashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "careslot.name" . }}-grafana-dashboard
+  labels:
+    {{- include "careslot.labels" . | nindent 4 }}
+    grafana_dashboard: "1"               # the kube-prometheus-stack Grafana sidecar imports this
+data:
+  careslot.json: |-
+{{ .Files.Get "dashboards/careslot.json" | indent 4 }}
+{{- end }}

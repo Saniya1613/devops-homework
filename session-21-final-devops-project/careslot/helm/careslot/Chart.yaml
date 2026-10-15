@@ -1,0 +1,10 @@
+apiVersion: v2
+name: careslot
+description: CareSlot clinic appointment booking (React + FastAPI + PostgreSQL) - Session 21 capstone
+type: application
+version: 2.0.0
+appVersion: "2.0.0"
+keywords: [clinic, appointments, fastapi, react, postgresql]
+maintainers:
+  - name: Saniya Sanjiv Patil
+    url: https://github.com/Saniya1613
