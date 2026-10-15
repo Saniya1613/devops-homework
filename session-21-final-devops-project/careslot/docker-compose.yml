@@ -1,0 +1,46 @@
+# CareSlot full local stack:  docker compose up --build   ->  http://localhost:3000
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: careslot
+      POSTGRES_USER: careslot
+      POSTGRES_PASSWORD: careslot          # local demo only - Kubernetes uses a Secret
+    volumes:
+      - careslot-db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careslot -d careslot"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ./backend
+    image: careslot-backend:local
+    environment:
+      DB_HOST: db
+      DB_NAME: careslot
+      DB_USER: careslot
+      DB_PASSWORD: careslot
+      APP_ENV: compose
+      CORS_ORIGINS: http://localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build: ./frontend
+    image: careslot-frontend:local
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+    ports:
+      - "3000:8080"
+
+volumes:
+  careslot-db:
