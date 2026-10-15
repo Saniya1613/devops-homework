@@ -1,2 +1,0 @@
-TaskBoard deployed to namespace {{ .Release.Namespace }}.
-  curl -H "Host: {{ .Values.ingress.host }}" http://<node-ip>/api/tasks
