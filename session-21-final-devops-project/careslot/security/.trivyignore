@@ -1,0 +1,2 @@
+# Accepted risks: one CVE per line with a justification and an expiry, e.g.
+# CVE-2024-XXXXX exp:2026-12-31  # not reachable: the vulnerable function is never called

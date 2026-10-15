@@ -1,0 +1,8 @@
+# Gitleaks: default rules + allow-list for documented local-only demo values
+title = "careslot gitleaks config"
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Local docker-compose demo credentials (not real secrets)"
+regexes = ['''careslot:careslot''']

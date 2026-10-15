@@ -1,0 +1,15 @@
+# LAB 2 - Service with no endpoints.  kubectl apply -f troubleshooting/broken-service.yaml
+# Investigate: kubectl get endpoints careslot-backend-broken -n careslot     (<none>)
+#              kubectl get pods -n careslot --show-labels                     (app=careslot-backend)
+# Fix:         selector must be app=careslot-backend - a Service finds Pods only through labels.
+apiVersion: v1
+kind: Service
+metadata:
+  name: careslot-backend-broken
+  namespace: careslot
+spec:
+  selector:
+    app: careslot-api            # <-- the bug: no Pod has this label
+  ports:
+    - port: 8000
+      targetPort: 8000

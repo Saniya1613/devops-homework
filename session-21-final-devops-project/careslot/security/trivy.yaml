@@ -1,0 +1,7 @@
+# trivy --config security/trivy.yaml image ghcr.io/saniya1613/careslot-backend:<sha>
+severity: [HIGH, CRITICAL]
+exit-code: 1
+vulnerability:
+  ignore-unfixed: true
+scan:
+  scanners: [vuln, secret]

@@ -1,0 +1,21 @@
+# Argo CD keeps the cluster in sync with the Helm chart in Git (optional GitOps extension).
+#   kubectl apply -n argocd -f gitops/argocd-application.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: careslot
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Saniya1613/devops-homework
+    targetRevision: main
+    path: session-21-final-devops-project/careslot/helm/careslot
+    helm:
+      valueFiles: [values.yaml, values-dev.yaml]
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: careslot
+  syncPolicy:
+    automated: {prune: true, selfHeal: true}
+    syncOptions: [CreateNamespace=true]

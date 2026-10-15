@@ -1,0 +1,24 @@
+# LAB 1 - ImagePullBackOff.  kubectl apply -f troubleshooting/broken-image.yaml
+# Investigate: kubectl get pods -n careslot -l lab=broken-image
+#              kubectl describe pod -n careslot -l lab=broken-image   (Events: "manifest unknown")
+# Fix:         use a tag that exists in GHCR (the commit SHA CI pushed), then delete this Deployment.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: careslot-backend-broken-image
+  namespace: careslot
+  labels: {lab: broken-image}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {lab: broken-image}
+  template:
+    metadata:
+      labels: {lab: broken-image}
+    spec:
+      securityContext: {runAsNonRoot: true, runAsUser: 10001, seccompProfile: {type: RuntimeDefault}}
+      containers:
+        - name: backend
+          image: ghcr.io/saniya1613/careslot-backend:v9.9.9-does-not-exist   # <-- the bug
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
+          resources: {requests: {cpu: 10m, memory: 32Mi}, limits: {cpu: 100m, memory: 128Mi}}
