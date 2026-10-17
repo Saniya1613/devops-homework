@@ -300,6 +300,19 @@ See [`troubleshooting/README.md`](troubleshooting/README.md):
 | `kubectl get pods/svc`, `helm list`, app via Ingress | EKS cluster (section 9) + CI job "4. Deploy" log |
 | Prometheus target UP, Grafana panel | EKS cluster (section 10) + CI job "4. Deploy" check |
 
+### Screenshots (EKS run, ap-southeast-2)
+
+| Evidence | Screenshot |
+|---|---|
+| pytest -v (15 passed) | ![pytest -v (15 passed)](docs/screenshots/06-pytest-15-passed.jpg) |
+| terraform apply (28 added) | ![terraform apply (28 added)](docs/screenshots/07-terraform-apply.png) |
+| AWS VPC + EKS ACTIVE + nodes Ready | ![AWS VPC + EKS ACTIVE + nodes Ready](docs/screenshots/08-aws-vpc-eks-nodes.png) |
+| kubectl pods/svc + helm list on EKS | ![kubectl pods/svc + helm list on EKS](docs/screenshots/09-eks-kubectl-helm.jpg) |
+| App via Ingress (AWS LB) | ![App via Ingress (AWS LB)](docs/screenshots/10-eks-app-via-ingress.jpg) |
+| Prometheus targets UP | ![Prometheus targets UP](docs/screenshots/11-prometheus-targets-up.jpg) |
+| Grafana CareSlot dashboard | ![Grafana CareSlot dashboard](docs/screenshots/12-grafana-dashboard.jpg) |
+| terraform destroy (28 destroyed) | ![terraform destroy (28 destroyed)](docs/screenshots/13-terraform-destroy.png) |
+
 ## 14. Lessons learned
 
 1. **Tests first is the cheapest gate.** The double-booking rule was easy to get wrong with time zones. A test caught it before any image was built.

@@ -44,6 +44,33 @@ resource "aws_eks_cluster" "main" {
   depends_on = [aws_iam_role_policy_attachment.cluster, aws_iam_role_policy.cluster_kms]
 }
 
+# Launch template for the worker nodes: IMDSv2 only, with a hop limit of 2 so pods (EBS CSI
+# controller, etc.) can reach the instance metadata service. AL2023 nodes default to 1 hop.
+resource "aws_launch_template" "nodes" {
+  name_prefix = "${var.cluster_name}-nodes-"
+
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = 20
+      volume_type           = "gp3"
+      encrypted             = true
+      delete_on_termination = true
+    }
+  }
+
+  tag_specifications {
+    resource_type = "instance"
+    tags          = { Name = "${var.cluster_name}-node" }
+  }
+}
+
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "${var.cluster_name}-nodes"
@@ -51,7 +78,11 @@ resource "aws_eks_node_group" "main" {
   subnet_ids      = local.node_subnet_ids
   instance_types  = var.node_instance_types
   capacity_type   = var.node_capacity_type
-  disk_size       = 20
+
+  launch_template {
+    id      = aws_launch_template.nodes.id
+    version = aws_launch_template.nodes.latest_version
+  }
 
   scaling_config {
     desired_size = var.node_desired_size

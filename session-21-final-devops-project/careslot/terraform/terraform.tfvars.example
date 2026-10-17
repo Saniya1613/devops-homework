@@ -5,7 +5,7 @@ environment         = "dev"
 owner               = "saniya-24bcs10246"
 cluster_name        = "careslot-eks"
 enable_nat_gateway  = false            # true = private nodes behind a NAT gateway (costs more)
-node_instance_types = ["t3.medium"]
+node_instance_types = ["t3.medium"]   # AWS Free plan accounts: use ["m7i-flex.large"] + ON_DEMAND
 node_capacity_type  = "SPOT"           # cheapest for a short demo
 node_desired_size   = 2
 node_min_size       = 1
