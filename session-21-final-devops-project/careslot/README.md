@@ -189,6 +189,8 @@ The workflow runs on every push to `main` that touches this project, on pull req
 | 3. Build | builds both images, prints a full Trivy report, **Trivy gate**, pushes `ghcr.io/saniya1613/careslot-{backend,frontend}:<commit SHA>` | a HIGH or CRITICAL CVE that has a fix |
 | 4. Deploy | kind cluster + ingress-nginx + metrics-server + kube-prometheus-stack, `helm upgrade --install`, smoke test through the Ingress, 60 s load, HPA status, Prometheus target **UP** check | pods not ready, Ingress smoke test fails, or Prometheus is not scraping the backend |
 
+| 5. GitOps | on `main` only: writes the new SHA into `helm/careslot/values-gitops.yaml` and commits it (`[skip ci]`) | never (no change = no commit) |
+
 Images are tagged with the full commit SHA, never `latest`, so every running pod can be traced back to one commit.
 
 **What Trivy scanned and what it means.** Trivy scans each finished image: the OS packages (Debian 13 in the backend, Alpine in the frontend) and every Python package in the backend. The gate fails only on HIGH or CRITICAL vulnerabilities that already have a fixed version, because those are the ones we can act on. That is why both Dockerfiles upgrade their OS packages. In my local scan both images had **0 fixable HIGH/CRITICAL** findings. The backend still has unfixed Debian findings. One example is **CVE-2026-9538** in `perl-base` (HIGH, status `fix_deferred`), a denial of service via a crafted tar header in Perl's Archive::Tar. CareSlot never runs Perl or unpacks tar files, so it is not reachable. It stays visible in the report step and will be fixed when Debian ships a patch. Trivy config also flagged the public EKS API endpoint and the public subnets. These are deliberate for this demo, documented with `#trivy:ignore` comments in the Terraform, and can be tightened with `public_access_cidrs` and `enable_nat_gateway`. The missing Secrets encryption was fixed with a KMS key.
@@ -249,6 +251,24 @@ If the GHCR packages are private, make them public (package settings → Change 
 
 HPA demo: `API=http://<ingress-address> DURATION=120 CONCURRENCY=30 ./scripts/load-test.sh`, then watch `kubectl get hpa -n careslot -w`.
 
+### GitOps with Argo CD (EKS)
+
+On EKS the app is deployed by **Argo CD**, not by hand. `gitops/argocd-application.yaml` points Argo CD at this Helm chart on `main` with `values.yaml + values-eks.yaml + values-gitops.yaml`, with automated sync, prune and self-heal.
+
+```text
+git push -> 1. Test -> 2. Security -> 3. Build + Trivy + GHCR -> 4. Deploy (kind) -> 5. GitOps commit (new SHA)
+                                                                                         |
+                                       Argo CD on EKS sees the commit -> helm template -> rolling update
+```
+
+```bash
+kubectl create namespace argocd
+kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd -f gitops/argocd-application.yaml
+kubectl get applications -n argocd            # careslot  Synced  Healthy
+kubectl port-forward -n argocd svc/argocd-server 8080:443   # UI; password: argocd-initial-admin-secret
+```
+
 ## 10. M9: Observability
 
 * `/metrics` exposes `http_requests_total`, `http_request_duration_seconds` (per handler, method and status class) and the business counter `careslot_appointments_booked_total`.
@@ -287,6 +307,8 @@ See [`troubleshooting/README.md`](troubleshooting/README.md):
 6. Run `helm upgrade` with the new SHA, open the app through the Ingress and show that the change is live.
 7. Run `load-test.sh`, then show the HPA scaling and the Grafana panels moving.
 8. Break the Service selector (lab 2) and fix it live.
+
+The recorded presentation and the slide deck are in [`../demo/`](../demo/).
 
 ## 13. Submission evidence
 

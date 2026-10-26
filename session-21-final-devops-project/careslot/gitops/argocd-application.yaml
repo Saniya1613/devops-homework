@@ -1,5 +1,8 @@
-# Argo CD keeps the cluster in sync with the Helm chart in Git (optional GitOps extension).
+# Argo CD keeps the EKS cluster in sync with the Helm chart in Git (GitOps).
+#   kubectl create namespace argocd
+#   kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 #   kubectl apply -n argocd -f gitops/argocd-application.yaml
+# Flow: git push -> pipeline green -> job "5. GitOps" commits the new SHA to values-gitops.yaml -> Argo CD syncs.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -12,7 +15,7 @@ spec:
     targetRevision: main
     path: session-21-final-devops-project/careslot/helm/careslot
     helm:
-      valueFiles: [values.yaml, values-dev.yaml]
+      valueFiles: [values.yaml, values-eks.yaml, values-gitops.yaml]
   destination:
     server: https://kubernetes.default.svc
     namespace: careslot

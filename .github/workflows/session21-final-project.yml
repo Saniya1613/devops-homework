@@ -6,6 +6,7 @@
 #     -> 3. Build       docker build both images, Trivy image gate (HIGH/CRITICAL), push to GHCR tagged with the commit SHA
 #     -> 4. Deploy      kind cluster + ingress-nginx + metrics-server + kube-prometheus-stack,
 #                       helm upgrade --install, smoke test through the Ingress, Prometheus target UP check
+#     -> 5. GitOps      commit the new image SHA to helm/careslot/values-gitops.yaml; Argo CD on EKS syncs it
 #
 # No repository secrets are needed: GHCR uses the built-in GITHUB_TOKEN and the cluster is a throw-away kind cluster.
 # The same Helm command deploys to the Terraform EKS cluster (see the project README, section 9).
@@ -289,3 +290,24 @@ jobs:
             echo "=== $p"; kubectl logs -n careslot "$p" --all-containers --prefix --tail=60 || true
             kubectl describe -n careslot "$p" | sed -n '/Init Containers:/,/Conditions:/p;/Events:/,$p' || true
           done
+
+  # ------------------------------------------------------------------ 5. GitOps (Argo CD)
+  gitops:
+    name: 5. GitOps - bump image tag for Argo CD
+    needs: [build-scan-push, deploy]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Point values-gitops.yaml at this commit's images
+        run: |
+          F="$PROJECT/helm/careslot/values-gitops.yaml"
+          sed -i -E "s/^(  tag: ).*/\1\"$GITHUB_SHA\"/" "$F"
+          git diff
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "GitOps: deploy ${GITHUB_SHA::7} [skip ci]" || { echo "already up to date"; exit 0; }
+          git pull --rebase origin main
+          git push origin HEAD:main

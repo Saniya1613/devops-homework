@@ -1,0 +1,9 @@
+# Image tags that Argo CD deploys to EKS (GitOps).
+# CI job "5. GitOps" rewrites both tags to the commit SHA after a green pipeline;
+# Argo CD sees the commit and rolls the new images out. Use on top of values-eks.yaml.
+backend:
+  tag: "30c9918e0fbf936aa633a85d3e2ccc34a97ca4b0"
+frontend:
+  tag: "30c9918e0fbf936aa633a85d3e2ccc34a97ca4b0"
+postgres:
+  storageClass: gp3
